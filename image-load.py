@@ -1,6 +1,8 @@
 import cv2
 import sys
 
+print("running...")
+
 # image modes: -1 default, 0 grayscale, 1 transparency?
 img = cv2.imread("images/color-grid.png", -1)
 

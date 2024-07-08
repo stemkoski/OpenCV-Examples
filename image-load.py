@@ -8,10 +8,17 @@ img = cv2.imread("images/color-grid.png", -1)
 
 # set to pixel dimensions
 # img2 = cv2.resize( img, (512, 512) )
+
 # set to scaling value
 # img2 = cv2.resize( img, (0,0), fx=0.5, fy=0.25)
+
 # rotate
-img2 = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+# img2 = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+# reflect
+# 0 = around horizontal axis (swap top and bottom)
+# 1 = around vertical axis (swap left and right)
+img2 = cv2.flip(img, 1) 
 
 cv2.imshow("ImageWindow", img2)
 

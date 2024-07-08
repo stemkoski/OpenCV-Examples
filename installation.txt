@@ -2,5 +2,5 @@ installation
 
 from the command prompt:
 
-pip install opencv (also installs numpy)
+pip install opencv-python (also installs numpy)
 pip install mediapipe

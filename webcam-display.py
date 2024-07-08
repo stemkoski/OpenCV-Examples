@@ -21,6 +21,8 @@ while True:
         print("Error reading video")
         sys.exit()
 
+    # reflect (like a mirror)
+    frame = cv2.flip(frame, 1) 
     cv2.imshow("press Q to quit", frame)
 
     if cv2.waitKey(1) == ord("q"):

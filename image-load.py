@@ -37,6 +37,13 @@ cv2.imshow("ImageWindow2", mask)
 cv2.imshow("ImageWindow3", fg)
 cv2.imshow("ImageWindow4", bg)
 
+# Create a blank image
+image = np.zeros((512, 512, 3), np.uint8)
+# fill image with color
+image[:] = (0, 0, 255)
+cv2.imshow("ImageWindow5", image)
+
+
 # wait (0 = forever) for next key press; store value of pressed key
 k = cv2.waitKey(0)
 

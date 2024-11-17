@@ -52,6 +52,14 @@ class Finger(Enum):
 
 # finger 0 is thumb, finger 1 is index, etc.
 def analyzeFinger(fingerIndex, fingerConfig, landmark):
+
+    # handle array of finger index values
+    if type(fingerIndex) == list:
+        for i in fingerIndex:
+            if not analyzeFinger(i, fingerConfig, landmark):
+                return False
+        return True
+
     # i: joint index.
     i = 1 + 4 * fingerIndex
     if fingerConfig == Finger.STRAIGHT:
@@ -120,93 +128,79 @@ def determineLetter(landmark, hand_type):
     right_hand = (hand_type == "Right")
     left_hand  = (hand_type == "Left")
     
+    # the "fist" letters: A, T, N, M, S
+
     if analyzeFinger(0, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(1, Finger.PALM, landmark) \
-        and analyzeFinger(2, Finger.PALM, landmark) \
-        and analyzeFinger(3, Finger.PALM, landmark) \
-        and analyzeFinger(4, Finger.PALM, landmark) \
-        and (right_hand and landmark[4].x < landmark[8].x or left_hand and landmark[4].x > landmark[8].x) \
+        and analyzeFinger([1,2,3,4], Finger.PALM, landmark) \
+        and (right_hand and landmark[4].x < landmark[6].x or left_hand and landmark[4].x > landmark[6].x) \
         and (right_hand and landmark[12].x > landmark[5].x or left_hand and landmark[12].x < landmark[5].x):
-        return "A" # thumb to correct side of index AND palm facing forward (TODO: flat w.r.t. screen?)
+        return "A" # thumb to correct side of index joint AND palm facing forward (TODO: flat w.r.t. screen?)
     elif analyzeFinger(0, Finger.UP, landmark) \
         and landmark[4].y < landmark[16].y \
-        and (analyzeFinger(1, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(2, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(3, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)) \
-        and (right_hand and landmark[6].x  < landmark[4].x and landmark[4].x < landmark[10].x or \
+         and analyzeFinger([1,2,3,4], Finger.PALM, landmark) \
+       and (right_hand and landmark[6].x  < landmark[4].x and landmark[4].x < landmark[10].x or \
               left_hand and landmark[10].x < landmark[4].x and landmark[4].x < landmark[6].x):
         return "T" # avoid E confusion AND thumb between correct digits
     elif (right_hand and analyzeFinger(0, Finger.RIGHT, landmark) and landmark[4].x > landmark[6].x or \
            left_hand and analyzeFinger(0, Finger.LEFT, landmark)  and landmark[4].x < landmark[6].x) \
-        and landmark[4].y < landmark[16].y \
-        and (analyzeFinger(1, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(2, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(3, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)):
-        return "S" # thumb faces correct horizontal direction AND tip is past correct digits AND avoid confusion with E
+        and not (landmark[4].y > landmark[8].y and landmark[4].y > landmark[12].y and landmark[4].y > landmark[16].y and landmark[4].y > landmark[20].y) \
+        and analyzeFinger([1,2,3,4], Finger.PALM, landmark):
+        return "S" # thumb faces correct horizontal direction AND tip is past correct digits AND thumb tip is NOT below all fingertips (avoid confusion with E)
     elif landmark[4].y < landmark[16].y \
-        and (analyzeFinger(1, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(2, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(3, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)) \
+        and analyzeFinger([1,2,3,4], Finger.PALM, landmark) \
         and (right_hand and landmark[10].x < landmark[4].x and landmark[4].x < landmark[14].x or \
               left_hand and landmark[14].x < landmark[4].x and landmark[4].x < landmark[10].x) \
         and (landmark[5].y < landmark[0].y and landmark[17].y < landmark[0].y):
         return "N" # avoid E confusion AND thumb between correct digits AND hand oriented upwards (avoid G/N/M confusion)
     elif landmark[4].y < landmark[16].y \
-        and (analyzeFinger(1, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(2, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(3, Finger.BENT_OR_PALM, landmark)) \
-        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)) \
+        and analyzeFinger([1,2,3,4], Finger.PALM, landmark) \
         and (right_hand and landmark[14].x < landmark[4].x  or \
               left_hand and landmark[4].x  < landmark[14].x) \
         and (landmark[5].y < landmark[0].y and landmark[17].y < landmark[0].y):
         return "M" # avoid E confusion AND thumb between correct digits AND hand oriented upwards (avoid G/N/M confusion)
-    elif analyzeFinger(1, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(2, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(3, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(4, Finger.STRAIGHT_UP, landmark) \
+
+    # B
+    elif analyzeFinger([1,2,3,4], Finger.STRAIGHT_UP, landmark) \
         and ((right_hand and landmark[4].x > landmark[8].x) or (left_hand and landmark[4].x < landmark[8].x)): # thumb tip crosses index finger
         return "B"
+
     # C 
     elif (right_hand \
-        and analyzeFinger(1, Finger.DOWN_OR_LEFT, landmark) \
-        and analyzeFinger(2, Finger.DOWN_OR_LEFT, landmark) \
-        and analyzeFinger(3, Finger.DOWN_OR_LEFT, landmark) \
-        and analyzeFinger(4, Finger.DOWN_OR_LEFT, landmark) \
+        and analyzeFinger([1,2,3,4], Finger.DOWN_OR_LEFT, landmark) \
         and analyzeFinger(0, Finger.UP_OR_LEFT, landmark) \
         and landmark[20].x < landmark[5].x \
         and distance(landmark[8], landmark[4]) > distance(landmark[4], landmark[3]) \
         and landmark[8].y < landmark[4].y and landmark[20].y < landmark[4].y) or \
         (left_hand \
-        and analyzeFinger(1, Finger.DOWN_OR_RIGHT, landmark) \
-        and analyzeFinger(2, Finger.DOWN_OR_RIGHT, landmark) \
-        and analyzeFinger(3, Finger.DOWN_OR_RIGHT, landmark) \
-        and analyzeFinger(4, Finger.DOWN_OR_RIGHT, landmark) \
+        and analyzeFinger([1,2,3,4], Finger.DOWN_OR_RIGHT, landmark) \
         and analyzeFinger(0, Finger.UP_OR_RIGHT, landmark) \
         and landmark[20].x > landmark[5].x \
-        and distance(landmark[8], landmark[4]) > distance(landmark[4], landmark[3]) \
-        and landmark[8].y < landmark[4].y and landmark[20].y < landmark[4].y ): # TODO: distinguish from "O"
-        return "C" # very much turned to the side AND large gap between index tip and thumb tip AND all finger tips above thumb tip
+        and distance(landmark[8], landmark[4]) > distance(landmark[4], landmark[2]) \
+        and landmark[8].y < landmark[4].y and landmark[20].y < landmark[4].y ):
+        return "C" # very much turned to the side AND large+ gap between index tip and thumb tip AND all finger tips above thumb tip
+        
+        # TODO: the DL quadrant, rather than DOWN_OR_LEFT half-plane
+
     elif analyzeFinger(1, Finger.STRAIGHT_UP, landmark) \
         and analyzeFinger(2, Finger.PALM, landmark) \
         and analyzeFinger(3, Finger.PALM, landmark) \
         and analyzeFinger(4, Finger.PALM, landmark) \
         and (right_hand and landmark[4].x > landmark[8].x or left_hand and landmark[4].x < landmark[8].x): # thumb tip crosses index finger # LEFT D confused with I
         return "D"
-    elif landmark[4].y > landmark[16].y \
-        and (analyzeFinger(1, Finger.BENT, landmark) or analyzeFinger(1, Finger.PALM, landmark)) \
-        and (analyzeFinger(2, Finger.BENT, landmark) or analyzeFinger(2, Finger.PALM, landmark)) \
-        and (analyzeFinger(3, Finger.BENT, landmark) or analyzeFinger(3, Finger.PALM, landmark)) \
-        and (analyzeFinger(4, Finger.BENT, landmark) or analyzeFinger(4, Finger.PALM, landmark)) \
+    elif (landmark[4].y > landmark[8].y and landmark[4].y > landmark[12].y and landmark[4].y > landmark[16].y and landmark[4].y > landmark[20].y) \
+        and (analyzeFinger(1, Finger.PALM, landmark)) \
+        and (analyzeFinger(2, Finger.PALM, landmark)) \
+        and (analyzeFinger(3, Finger.PALM, landmark)) \
+        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)) \
         and (right_hand and analyzeFinger(0, Finger.RIGHT, landmark) or left_hand and analyzeFinger(0, Finger.LEFT, landmark)) \
         and (right_hand and landmark[12].x > landmark[5].x and landmark[12].x < landmark[13].x or left_hand and landmark[12].x < landmark[5].x and landmark[12].x > landmark[13].x) \
-        and (right_hand and landmark[4].x > landmark[12].x or left_hand and landmark[4].x < landmark[12].x):
-        return "E" # thumb is below fingertips (avoid T/N/M confusion) AND thumb is correct direction AND palm facing forward (not turned to *either* side) AND thumb far in towards the palm
-    elif analyzeFinger(2, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(3, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(4, Finger.STRAIGHT_UP, landmark) \
+        and (right_hand and landmark[4].x > landmark[12].x or left_hand and landmark[4].x < landmark[12].x) \
+        and (landmark[0].y > landmark[5].y and landmark[0].y > landmark[17].y):
+        return "E" # thumb is below fingertips (avoid T/N/M confusion) AND thumb is correct direction
+        # AND palm facing forward (not turned to *either* side) AND thumb far in towards the palm
+        # AND hand not oriented down
+        # NOTE: requiring all palm, to distinguish from "X". 
+    elif analyzeFinger([2,3,4], Finger.STRAIGHT_UP, landmark) \
         and not analyzeFinger(1, Finger.STRAIGHT, landmark): # no condition on thumb, too restrictive
         return "F" # TODO: add parallel condition on fingers 2/3/4? closeness of 0/1? 
     elif analyzeFinger(1, Finger.STRAIGHT_LEFT_OR_RIGHT, landmark) \
@@ -215,33 +209,28 @@ def determineLetter(landmark, hand_type):
         and not analyzeFinger(4, Finger.STRAIGHT, landmark) \
         and landmark[4].y > landmark[8].y: # avoid "gun" gesture recognized as "G"
         return "G"
-    elif analyzeFinger(1, Finger.STRAIGHT_LEFT_OR_RIGHT, landmark) \
-        and analyzeFinger(2, Finger.STRAIGHT_LEFT_OR_RIGHT, landmark) \
+    elif analyzeFinger([1,2], Finger.STRAIGHT_LEFT_OR_RIGHT, landmark) \
         and not analyzeFinger(3, Finger.STRAIGHT, landmark) \
         and not analyzeFinger(4, Finger.STRAIGHT, landmark) \
         and landmark[4].y > landmark[8].y: # avoid "gun" gesture recognized as "H"
         return "H"                                        # TODO: small angle between fingers, similar to U vs V.... write a "angle_approx" function ????
-    elif analyzeFinger(1, Finger.PALM, landmark) \
-        and analyzeFinger(2, Finger.PALM, landmark) \
-        and analyzeFinger(3, Finger.PALM, landmark) \
-        and analyzeFinger(4, Finger.STRAIGHT, landmark) \
+    elif analyzeFinger([1,2,3], Finger.PALM, landmark) \
+        and analyzeFinger(4, Finger.STRAIGHT_UP, landmark) \
         and ((right_hand and landmark[8].x < landmark[4].x and landmark[4].x < landmark[20].x) or (left_hand and landmark[20].x < landmark[4].x and landmark[4].x < landmark[8].x)):
         return "I" # thump tip between index and pinky tip
     # K
     elif (right_hand and landmark[5].x < landmark[4].x and landmark[4].x < landmark[9].x or \
            left_hand and landmark[9].x < landmark[4].x and landmark[4].x < landmark[5].x) \
         and landmark[4].y < landmark[5].y \
-        and analyzeFinger(1, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(2, Finger.STRAIGHT_UP, landmark) \
-        and (analyzeFinger(3, Finger.BENT, landmark) or analyzeFinger(3, Finger.PALM, landmark))\
-        and (analyzeFinger(4, Finger.BENT, landmark) or analyzeFinger(4, Finger.PALM, landmark)):
-        return "K"
+        and abs( analyzeFinger(1, Finger.ANGLE, landmark) - analyzeFinger(2, Finger.ANGLE, landmark) ) >= math.radians(10) \
+        and analyzeFinger([1,2], Finger.STRAIGHT_UP, landmark) \
+        and analyzeFinger([3,4], Finger.BENT_OR_PALM, landmark):
+        return "K" # thumb tip is between correct joints AND above joints AND fingers apart at angle (like "V")
+        # TODO: FINGER TIPS NOT CROSSED as in "R" (also do for U, V?)
     # L
     elif (right_hand and analyzeFinger(0, Finger.LEFT, landmark) or left_hand and analyzeFinger(0, Finger.RIGHT, landmark)) \
         and analyzeFinger(1, Finger.STRAIGHT_UP, landmark) \
-        and analyzeFinger(2, Finger.PALM, landmark) \
-        and analyzeFinger(3, Finger.PALM, landmark) \
-        and analyzeFinger(4, Finger.PALM, landmark):
+        and analyzeFinger([2,3,4], Finger.PALM, landmark):
         return "L"
     # above: M, N
     # O
@@ -263,46 +252,67 @@ def determineLetter(landmark, hand_type):
         and distance(landmark[8], landmark[4]) < distance(landmark[4], landmark[3]) ): # TODO: distinguish from "O"
         return "O" # very much turned to the side AND *small* gap between index tip and thumb tip
     # P
+    elif analyzeFinger(1, Finger.STRAIGHT_LEFT_OR_RIGHT, landmark) \
+        and analyzeFinger(2, Finger.STRAIGHT_DOWN, landmark):
+        return "P"
     # Q
+    elif analyzeFinger(0, Finger.DOWN, landmark) \
+        and analyzeFinger(1, Finger.STRAIGHT_DOWN, landmark) \
+        and not analyzeFinger(2, Finger.STRAIGHT, landmark):
+        return "Q"
     # R
+    elif (right_hand and landmark[8].x > landmark[12].x and landmark[4].x > landmark[12].x or left_hand and landmark[8].x < landmark[12].x and landmark[4].x < landmark[12].x ) \
+        and (analyzeFinger(3, Finger.BENT_OR_PALM, landmark)) \
+        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)):
+        return "R" # index tip past middle tip AND thumb tip past middle tip 
     # above: S, T
     # U
-    elif (right_hand and landmark[4].x > landmark[9].x or left_hand and landmark[4].x < landmark[9].x) \
+    elif (right_hand and landmark[4].x > landmark[5].x or left_hand and landmark[4].x < landmark[5].x) \
+        and (landmark[4].y > landmark[5].y) \
         and analyzeFinger(1, Finger.STRAIGHT_UP, landmark) \
         and analyzeFinger(2, Finger.STRAIGHT_UP, landmark) \
         and abs( analyzeFinger(1, Finger.ANGLE, landmark) - analyzeFinger(2, Finger.ANGLE, landmark) ) < math.radians(10) \
-        and (analyzeFinger(3, Finger.BENT, landmark) or analyzeFinger(3, Finger.PALM, landmark))\
-        and (analyzeFinger(4, Finger.BENT, landmark) or analyzeFinger(4, Finger.PALM, landmark)):
-        return "U" # TODO (here and "K": add angle between U,V)
+        and (analyzeFinger(3, Finger.BENT_OR_PALM, landmark))\
+        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)):
+        return "U" # thumb tip to the side and below certain joint AND small angle
     # V
-    elif (right_hand and landmark[4].x > landmark[9].x or left_hand and landmark[4].x < landmark[9].x) \
+    elif (right_hand and landmark[4].x > landmark[5].x or left_hand and landmark[4].x < landmark[5].x) \
         and analyzeFinger(1, Finger.STRAIGHT_UP, landmark) \
         and analyzeFinger(2, Finger.STRAIGHT_UP, landmark) \
         and abs( analyzeFinger(1, Finger.ANGLE, landmark) - analyzeFinger(2, Finger.ANGLE, landmark) ) >= math.radians(10) \
-        and (analyzeFinger(3, Finger.BENT, landmark) or analyzeFinger(3, Finger.PALM, landmark))\
-        and (analyzeFinger(4, Finger.BENT, landmark) or analyzeFinger(4, Finger.PALM, landmark)):
-        return "V" # TODO (here and "K": add angle between U,V)
+        and (analyzeFinger(3, Finger.BENT_OR_PALM, landmark)) \
+        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)):
+        return "V"  # thumb tip to the side and below certain joint AND large* angle
     # W
     elif (right_hand and landmark[4].x > landmark[9].x or left_hand and landmark[4].x < landmark[9].x) \
         and analyzeFinger(1, Finger.STRAIGHT_UP, landmark) \
         and analyzeFinger(2, Finger.STRAIGHT_UP, landmark) \
         and analyzeFinger(3, Finger.STRAIGHT_UP, landmark) \
-        and (analyzeFinger(4, Finger.BENT, landmark) or analyzeFinger(4, Finger.PALM, landmark)):
+        and (analyzeFinger(4, Finger.BENT_OR_PALM, landmark)):
         return "W" 
+    # X
+    elif (right_hand and landmark[4].x > landmark[8].x or left_hand and landmark[4].x < landmark[8].x) \
+        and analyzeFinger(1, Finger.BENT, landmark) and not analyzeFinger(1, Finger.PALM, landmark) \
+        and analyzeFinger(2, Finger.PALM, landmark) \
+        and analyzeFinger(3, Finger.PALM, landmark) \
+        and analyzeFinger(4, Finger.PALM, landmark):
+        return "X"
     # Y
     elif analyzeFinger(0, Finger.STRAIGHT, landmark) \
         and analyzeFinger(1, Finger.PALM, landmark) \
         and analyzeFinger(2, Finger.PALM, landmark) \
         and analyzeFinger(3, Finger.PALM, landmark) \
-        and analyzeFinger(4, Finger.STRAIGHT, landmark):
-        return "Y"
+        and analyzeFinger(4, Finger.STRAIGHT, landmark) \
+        and (right_hand and landmark[12].x > landmark[5].x or left_hand and landmark[12].x < landmark[5].x) \
+        and (landmark[0].y > landmark[5].y and landmark[0].y > landmark[17].y):
+        return "Y" # AND palm facing forwards AND palm not oriented down
     # Z
     elif analyzeFinger(1, Finger.STRAIGHT_DOWN, landmark) \
         and analyzeFinger(2, Finger.BENT_OR_PALM, landmark) \
         and analyzeFinger(3, Finger.BENT_OR_PALM, landmark) \
         and analyzeFinger(4, Finger.BENT_OR_PALM, landmark) \
         and landmark[4].y > landmark[0].y:
-        return "Z (or Q?)" # index finger tip below wrist - overall hand orientation is down ---- TODO: fix confusion with E, add another condition to E for "upright"
+        return "Z" # index finger tip below wrist - overall hand orientation is down ---- TODO: fix confusion with E, add another condition to E for "upright"
     else:
         return "?"
 

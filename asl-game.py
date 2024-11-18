@@ -4,15 +4,19 @@ import sys
 import mediapipe as mp
 from enum import Enum
 import math
+import random
+import time
 
 
 # font parameters
 fontFamily    = cv2.FONT_HERSHEY_SIMPLEX
-fontScale     = 1
+fontScale     = 2
 fontThickness = 2
 def displayText(frame, text, position):
-    frame = cv2.putText(frame, text, position, fontFamily, fontScale, (0,0,0), fontThickness*2, cv2.LINE_AA)
-    frame = cv2.putText(frame, text, position, fontFamily, fontScale, (255,255,255), fontThickness, cv2.LINE_AA)
+    (w,h), _ = cv2.getTextSize(text, fontFamily, fontScale, fontThickness)
+    (x,y) = (position[0] - int(w/2), position[1] + int(h/2))
+    frame = cv2.putText(frame, text, (x,y), fontFamily, fontScale, (0,0,0), fontThickness*5, cv2.LINE_AA)
+    frame = cv2.putText(frame, text, (x,y), fontFamily, fontScale, (255,255,255), fontThickness*2, cv2.LINE_AA)
 
 # helper math functions
 
@@ -175,7 +179,7 @@ def determineLetter(landmark, hand_type):
         and analyzeFinger([1,2,3,4], Finger.DOWN_OR_RIGHT, landmark) \
         and analyzeFinger(0, Finger.UP_OR_RIGHT, landmark) \
         and landmark[20].x > landmark[5].x \
-        and distance(landmark[8], landmark[4]) > distance(landmark[4], landmark[2]) \
+        and distance(landmark[8], landmark[4]) > distance(landmark[4], landmark[1]) \
         and landmark[8].y < landmark[4].y and landmark[20].y < landmark[4].y ):
         return "C" # very much turned to the side AND large+ gap between index tip and thumb tip AND all finger tips above thumb tip
         
@@ -322,10 +326,16 @@ print("running webcam app")
 # -1 causes error: Camera index out of range
 # DSHOW = direct show, used on windows
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 600)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
 
-print("video capture initialized")
+# attempted resolution set
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 960) # 1280
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 540) # 720
+# closest resolution available
+print("video capture initialized @ width x height:")
+print(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+print(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+screen_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 mp_hands = mp.solutions.hands
 hand = mp_hands.Hands()
@@ -335,7 +345,65 @@ mp_drawing = mp.solutions.drawing_utils
 if not cap.isOpened():
     print("Error opening video")
 
-while True:
+
+# initialize time variables
+elapsedTime = 0
+currentTime = time.time()
+previousTime = currentTime
+
+# during main loop:
+currentTime = time.time()
+deltaTime = currentTime - previousTime
+elapsedTime += deltaTime
+print("Delta Time:", deltaTime)
+print("Elapsed Time:", elapsedTime)
+previousTime = currentTime
+
+# pastel colors, BRG order for CV2
+red    = (150,150,255)
+orange = (150,200,255)
+yellow = (200,255,255)
+green  = (150,200,150)
+blue   = (255,200,150)
+purple = (255,150,200)
+white  = (255,255,255)
+black  = (0,0,0)
+radius = 40
+start_speed = 60
+
+letter_list = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y"]
+
+circleList = [ 
+    { "active":True, "x": 75, "y":-100, "color":red,    "letter":"?", "speed":start_speed },
+    { "active":True, "x":175, "y":-200, "color":orange, "letter":"?", "speed":start_speed },
+    { "active":True, "x":275, "y":-300, "color":yellow, "letter":"?", "speed":start_speed },
+    { "active":True, "x":375, "y":-400, "color":green,  "letter":"?", "speed":start_speed },
+    { "active":True, "x":475, "y":-500, "color":blue,   "letter":"?", "speed":start_speed },
+    { "active":True, "x":575, "y":-600, "color":purple, "letter":"?", "speed":start_speed }
+]
+
+for circle in circleList:
+    random_letter = random.choice(letter_list)
+    letter_list.remove(random_letter)
+    circle["letter"] = random_letter
+
+game_running = True
+quit_pressed = False
+score = 0
+miss = 0
+missed_letters = ""
+missed_display = "---"
+
+while game_running:
+
+    # time updates
+    currentTime = time.time()
+    deltaTime = currentTime - previousTime
+    elapsedTime += deltaTime
+    # print("Delta Time:", deltaTime) # looks like approx 30 FPS at small res, 10 FPS at large res
+    # print("Elapsed Time:", elapsedTime)
+    previousTime = currentTime
+
     # note: frames loaded in BGR order
     success, frame = cap.read()
     
@@ -348,7 +416,7 @@ while True:
     frame = cv2.flip(frame, 1)
     RGB_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     result = hand.process(RGB_frame)
-    summary = "no data"
+    summary = "[]"
 
     if result.multi_hand_landmarks:
         hand_landmarks = result.multi_hand_landmarks[0] # just first hand
@@ -358,27 +426,101 @@ while True:
         summary = determineLetter(result.multi_hand_landmarks[0].landmark, hand_type)
         # summary = analyzeFinger(1, Finger.HAND_FRONT, landmark)
         summary = str(summary)
-        
-        """"
-        # to process multiple hands
-        for hand_landmarks in result.multi_hand_landmarks:
-            mp_drawing.draw_landmarks(frame, hand_landmarks,  mp_hands.HAND_CONNECTIONS)
-            # landmark: 0 for palm, 4 for thump tip, 8 for index tip
-            # see https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker for numbering scheme
-            landmark = result.multi_hand_landmarks[0].landmark
-            summary = determineLetter(result.multi_hand_landmarks[0].landmark)
-            # summary = analyzeFinger(1, Finger.ANGLE, landmark)
-            summary = str(summary)
-        """
+
+
+    # TODO: draw letter in box on right hand side of screen
+
     # draw text on image
-    displayText(frame, summary, (50,50) )
+    displayText(frame, summary, (900,50) )
 
+    # use for measuring
+    # cv2.line(frame, (0,0), (0,470), (255,0,0), 5)
 
+    # double size? 
+    # frame = cv2.resize(frame, (960, 720), interpolation=cv2.INTER_LINEAR)
+   
+    for c in circleList:
+        frame = cv2.circle(frame, (c["x"], c["y"]), radius, c["color"], -1)
+        frame = cv2.circle(frame, (c["x"], c["y"]), radius, black, 3)
+        displayText(frame, c["letter"], (c["x"], c["y"]) )
+
+        if c["y"] > radius and summary == c["letter"]:
+            # print("score")
+            score += 1
+            c["y"] = -2*radius
+            c["speed"] += 2
+            stored_letter = c["letter"]
+            random_letter = random.choice(letter_list)
+            letter_list.remove(random_letter)
+            c["letter"] = random_letter
+            letter_list.append(stored_letter)
+
+        c["y"] += int(c["speed"] * deltaTime)
+
+        if c["y"] > screen_height + radius:
+            # print("miss")
+            miss += 1
+            c["y"] = -2*radius
+            missed_letters += c["letter"]
+            if miss == 1:
+                missed_display = missed_letters + "--"
+            if miss == 2:
+                missed_display = missed_letters + "-"
+            if miss == 3:
+                missed_display = missed_letters + ""
+
+            # Version 1: missed letter taken out of rotation
+            random_letter = random.choice(letter_list)
+            letter_list.remove(random_letter)
+            c["letter"] = random_letter
+            
+            # # Version 2: missed letter may appear again
+            # stored_letter = c["letter"]
+            # random_letter = random.choice(letter_list)
+            # letter_list.remove(random_letter)
+            # c["letter"] = random_letter
+            # letter_list.append(stored_letter)
+
+    displayText(frame, "score", (850,360) )
+    displayText(frame, str(score), (850,420) )
+    displayText(frame, missed_display, (850,500) )
+
+    if miss >= 3:
+        game_running = False
+
+    # suggested
+    # min speed 60
+    # max speed 120
 
     cv2.imshow("press Q to quit", frame)
 
     if cv2.waitKey(1) == ord("q"):
-        break
+        game_running = False
+        quit_pressed = True
+
+    if cv2.getWindowProperty("press Q to quit", cv2.WND_PROP_VISIBLE) < 1:        
+        game_running = False
+        quit_pressed = True       
+
+while not quit_pressed:
+
+    success, frame = cap.read()
+    if not success:
+        cap.release()
+        print("Error reading video")
+        sys.exit()
+    frame = cv2.flip(frame, 1)
+    displayText(frame, "final", (850,310) )
+    displayText(frame, "score", (850,360) )
+    displayText(frame, str(score), (850,420) )
+    displayText(frame, missed_display, (850,500) )
+
+    cv2.imshow("press Q to quit", frame)
+
+    if cv2.waitKey(1) == ord("q"):
+        quit_pressed = True
+
+
 
 cap.release()
 cv2.destroyAllWindows()

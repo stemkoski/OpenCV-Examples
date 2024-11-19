@@ -8,6 +8,11 @@ import random
 import time
 
 
+# to install libraries - from the command prompt:
+# pip install opencv-python (also installs numpy)
+# pip install mediapipe
+
+
 # font parameters
 fontFamily    = cv2.FONT_HERSHEY_SIMPLEX
 fontScale     = 2
